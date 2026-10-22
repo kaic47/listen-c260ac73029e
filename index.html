@@ -1,0 +1,505 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Recording</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Mono:wght@400;600&family=Atkinson+Hyperlegible+Next:wght@400;600;800&display=swap">
+<style>
+/* Layout: one reading column; a large player docked to the bottom edge, its timeline carries the chapter marks */
+:root {
+  --bg: #f3f6f5;
+  --surface: #ffffff;
+  --ink: #17201d;
+  --muted: #56635e;
+  --line: #d5dedb;
+  --fir: #2a6650;
+  --fir-ink: #ffffff;
+  --fir-soft: #dcebe4;
+  --now-bg: #f7dc85;
+  --now-ink: #2e2300;
+  --font-body: "Atkinson Hyperlegible Next", "Atkinson Hyperlegible", -apple-system, "Segoe UI", system-ui, sans-serif;
+  --font-mono: "Atkinson Hyperlegible Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --step-0: 1.1875rem;
+  --step-1: 1.4rem;
+  --step-2: 2rem;
+  --step--1: 1rem;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #101513; --surface: #18201d; --ink: #e6edea; --muted: #a3b4ad; --line: #2c3834;
+    --fir: #7cc4a4; --fir-ink: #0c1411; --fir-soft: #1f3a2f; --now-bg: #5a4810; --now-ink: #fff4cc;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #101513; --surface: #18201d; --ink: #e6edea; --muted: #a3b4ad; --line: #2c3834;
+  --fir: #7cc4a4; --fir-ink: #0c1411; --fir-soft: #1f3a2f; --now-bg: #5a4810; --now-ink: #fff4cc;
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: var(--step-0);
+  line-height: 1.55;
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+.wrap {
+  max-width: 44rem;
+  margin-inline: auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+h1, h2, h3 { text-wrap: balance; line-height: 1.2; margin: 0; }
+button { font: inherit; color: inherit; }
+[hidden] { display: none !important; }
+:focus-visible { outline: 3px solid var(--fir); outline-offset: 2px; border-radius: 4px; }
+.time { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+.top { padding-block: 2rem 0.5rem; display: grid; gap: 0.5rem; }
+h1 { font-size: var(--step-2); font-weight: 800; letter-spacing: -0.01em; }
+.meta { margin: 0; color: var(--muted); }
+.resume {
+  justify-self: start; margin-top: 0.5rem; min-height: 3rem; padding: 0.6rem 1.2rem; border-radius: 999px;
+  border: 2px solid var(--fir); background: var(--surface); color: var(--fir); font-weight: 600; cursor: pointer;
+}
+
+section.part { padding-block: 1.5rem 0.5rem; }
+h2 { font-size: var(--step-1); font-weight: 800; margin-bottom: 0.6rem; }
+
+.chapters ol { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+.chapters li { border-bottom: 1px solid var(--line); }
+.chap {
+  display: grid; grid-template-columns: 4rem minmax(0, 1fr); gap: 0.75rem; align-items: baseline;
+  width: 100%; min-height: 3.25rem; text-align: left; background: none; border: 0; padding: 0.7rem 0.4rem; cursor: pointer;
+}
+.chap .time { color: var(--fir); font-weight: 600; font-size: var(--step--1); }
+.chap .ct { font-weight: 600; }
+.chap.cur { background: var(--fir-soft); border-radius: 8px; }
+
+.tchap { padding-top: 1.5rem; }
+.tchap h3 {
+  font-size: var(--step-0); font-weight: 800; display: flex; gap: 0.75rem; align-items: baseline;
+  padding-bottom: 0.5rem; border-bottom: 2px solid var(--fir); margin-bottom: 0.4rem;
+}
+.tchap h3 .time { color: var(--fir); font-weight: 600; font-size: var(--step--1); }
+.blk { display: grid; grid-template-columns: 4rem minmax(0, 1fr); gap: 0.75rem; padding-block: 0.5rem; }
+.ts {
+  align-self: start; background: none; border: 0; padding: 0.2rem 0; cursor: pointer;
+  color: var(--muted); font-size: var(--step--1); text-align: left;
+}
+.lines { min-width: 0; display: grid; }
+.ln {
+  display: block; width: 100%; text-align: left; background: none; border: 0;
+  padding: 0.15rem 0.4rem; margin: 0 0 0 -0.4rem; border-radius: 6px; cursor: pointer;
+  line-height: 1.5; overflow-wrap: anywhere;
+}
+.ln.now { background: var(--now-bg); color: var(--now-ink); }
+@media (hover: hover) {
+  .ln:hover { background: var(--fir-soft); }
+  .ln.now:hover { background: var(--now-bg); }
+  .ts:hover, .chap:hover .ct { color: var(--fir); text-decoration: underline; text-underline-offset: 3px; }
+}
+
+#spacer { height: 210px; }
+
+/* Player */
+.player {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 10;
+  background: var(--surface); border-top: 1px solid var(--line);
+  box-shadow: 0 -6px 24px rgb(0 0 0 / 0.1);
+  padding-top: 0.6rem;
+  padding-bottom: calc(0.7rem + env(safe-area-inset-bottom, 0px));
+}
+.player .wrap { display: grid; gap: 0.25rem; }
+.prow { display: flex; align-items: baseline; gap: 0.75rem; min-width: 0; }
+.nowchap { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; font-size: var(--step--1); }
+.clock { color: var(--muted); font-size: var(--step--1); white-space: nowrap; }
+
+.track { position: relative; height: 40px; cursor: pointer; touch-action: none; }
+.rail { position: absolute; left: 0; right: 0; top: 16px; height: 8px; border-radius: 4px; background: var(--line); overflow: hidden; }
+.fill { height: 100%; width: 0; background: var(--fir); }
+.tick { position: absolute; top: 12px; width: 3px; height: 16px; margin-left: -1.5px; border-radius: 2px; background: var(--ink); opacity: 0.35; pointer-events: none; }
+.knob {
+  position: absolute; top: 7px; left: 0; width: 26px; height: 26px; margin-left: -13px; border-radius: 50%;
+  background: var(--fir); border: 3px solid var(--surface); box-shadow: 0 1px 4px rgb(0 0 0 / 0.3); pointer-events: none;
+}
+
+.transport { display: flex; align-items: center; justify-content: center; gap: 1.25rem; padding-top: 0.1rem; }
+.skip {
+  min-width: 4.25rem; height: 3.25rem; padding: 0 0.75rem; border-radius: 999px; border: 2px solid var(--line);
+  background: var(--surface); font-weight: 600; cursor: pointer;
+}
+#play {
+  width: 4.25rem; height: 4.25rem; border-radius: 50%; border: 0; background: var(--fir); color: var(--fir-ink);
+  display: grid; place-items: center; cursor: pointer;
+}
+#play svg { width: 1.9rem; height: 1.9rem; fill: currentColor; }
+.status { text-align: center; font-size: var(--step--1); color: var(--muted); }
+.status:empty { display: none; }
+
+#backnow {
+  position: fixed; z-index: 11; left: 50%; transform: translateX(-50%);
+  bottom: calc(var(--player-h, 190px) + 0.75rem);
+  min-height: 3rem; padding: 0.6rem 1.2rem; border-radius: 999px; border: 0; background: var(--ink); color: var(--bg);
+  font-weight: 600; box-shadow: 0 4px 16px rgb(0 0 0 / 0.25); cursor: pointer; white-space: nowrap;
+}
+
+@media (max-width: 30rem) {
+  :root { --step-2: 1.7rem; }
+  .blk, .chap { grid-template-columns: 3.6rem minmax(0, 1fr); gap: 0.6rem; }
+}
+</style>
+</head>
+<body>
+
+
+<header class="wrap top">
+  <h1 id="h1"></h1>
+  <p class="meta" id="meta"></p>
+  <button class="resume" id="resume" type="button" hidden></button>
+</header>
+
+<section class="wrap part chapters" aria-labelledby="chap-h">
+  <h2 id="chap-h">Chapters</h2>
+  <ol id="chapters"></ol>
+</section>
+
+<main class="wrap part" aria-labelledby="tr-h">
+  <h2 id="tr-h">Transcript</h2>
+  <div id="transcript"></div>
+  <div id="spacer"></div>
+</main>
+
+<button id="backnow" type="button" hidden>Go to where it's playing</button>
+
+<div class="player" id="player" role="region" aria-label="Audio player">
+  <div class="wrap">
+    <div class="prow">
+      <span class="nowchap" id="nowchap"></span>
+      <span class="clock time"><span id="cur">0:00</span> / <span id="dur">39:29</span></span>
+    </div>
+    <div class="track" id="track" role="slider" tabindex="0" aria-label="Position in the recording" aria-valuemin="0">
+      <div class="rail"><div class="fill" id="fill"></div></div>
+      <div id="ticks"></div>
+      <div class="knob" id="knob"></div>
+    </div>
+    <div class="transport">
+      <button class="skip" id="back" type="button" aria-label="Back 15 seconds">-15s</button>
+      <button id="play" type="button" aria-label="Play">
+        <svg id="ic-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15a1 1 0 0 0 1.5.86l12.5-7.5a1 1 0 0 0 0-1.72L8.5 3.64A1 1 0 0 0 7 4.5z"/></svg>
+        <svg id="ic-pause" viewBox="0 0 24 24" aria-hidden="true" hidden><rect x="5.5" y="4" width="4.5" height="16" rx="1.2"/><rect x="14" y="4" width="4.5" height="16" rx="1.2"/></svg>
+      </button>
+      <button class="skip" id="fwd" type="button" aria-label="Forward 15 seconds">+15s</button>
+    </div>
+    <div class="status" id="status" aria-live="polite"></div>
+  </div>
+  <audio id="audio" preload="none"></audio>
+</div>
+
+<script id="data" type="application/json">null</script>
+<script>
+window.__start = function (D) {
+  var KEY = 'listen';
+  var audio = document.getElementById('audio');
+  var $ = function (id) { return document.getElementById(id); };
+  var dur = D.duration;
+
+  function fmt(s) {
+    s = Math.max(0, Math.floor(s));
+    var h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), x = s % 60;
+    return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(x).padStart(2, '0');
+  }
+  function store(k, v) { try { localStorage.setItem(KEY + ':' + k, v); } catch (e) {} }
+  function load(k) { try { return localStorage.getItem(KEY + ':' + k); } catch (e) { return null; } }
+
+  // ---- Chapters and transcript
+  var chapBtns = [], chapEls = [], lines = [];
+  D.chapters.forEach(function (c, i) {
+    var li = document.createElement('li');
+    var b = document.createElement('button');
+    b.type = 'button'; b.className = 'chap';
+    b.innerHTML = '<span class="time"></span><span class="ct"></span>';
+    b.children[0].textContent = fmt(c.t);
+    b.children[1].textContent = c.title;
+    b.addEventListener('click', function () { seek(c.t, true); });
+    li.appendChild(b); $('chapters').appendChild(li); chapBtns.push(b);
+    var tk = document.createElement('div'); tk.className = 'tick';
+    tk.style.left = (100 * c.t / dur) + '%';
+    if (i > 0) $('ticks').appendChild(tk);
+  });
+  $('nowchap').textContent = D.chapters[0].title;
+
+  var frag = document.createDocumentFragment(), ci = -1, sec = null;
+  D.blocks.forEach(function (bk) {
+    while (ci + 1 < D.chapters.length && bk.t >= D.chapters[ci + 1].t - 0.01) {
+      ci++;
+      sec = document.createElement('section'); sec.className = 'tchap';
+      var h = document.createElement('h3');
+      h.innerHTML = '<span class="time"></span><span></span>';
+      h.children[0].textContent = fmt(D.chapters[ci].t);
+      h.children[1].textContent = D.chapters[ci].title;
+      sec.appendChild(h); frag.appendChild(sec); chapEls.push(sec);
+    }
+    var row = document.createElement('div'); row.className = 'blk';
+    var ts = document.createElement('button'); ts.type = 'button'; ts.className = 'ts time';
+    ts.textContent = fmt(bk.t); ts.setAttribute('aria-label', 'Play from ' + fmt(bk.t));
+    ts.addEventListener('click', function () { seek(bk.t, true); });
+    var box = document.createElement('div'); box.className = 'lines';
+    bk.lines.forEach(function (ln) {
+      var b = document.createElement('button'); b.type = 'button'; b.className = 'ln';
+      b.textContent = ln.x;
+      b.addEventListener('click', function () { seek(ln.t, true); });
+      box.appendChild(b); lines.push({ t: ln.t, el: b });
+    });
+    row.appendChild(ts); row.appendChild(box); sec.appendChild(row);
+  });
+  $('transcript').appendChild(frag);
+
+  // ---- Playback
+  var follow = true, curLine = -1, curChap = -1, autoScrolling = false, dragging = false;
+
+  function total() { return isFinite(audio.duration) && audio.duration > 0 ? audio.duration : dur; }
+  function playNow() { var p = audio.play(); if (p && p.catch) p.catch(function () {}); }
+
+  // Jumping needs a host that streams from any point. If it does not, load the
+  // whole file once and play it from memory; jumps asked for meanwhile wait.
+  var whole = 'none', pendingT = null, wantPlay = false;
+  function canJump() {
+    if (whole === 'ready') return true;
+    var s = audio.seekable;
+    return audio.readyState >= 1 && s && s.length > 0 && s.end(s.length - 1) > total() - 5;
+  }
+  function settle() {
+    if (pendingT !== null) { try { audio.currentTime = pendingT; } catch (e) {} pendingT = null; }
+    if (wantPlay) { wantPlay = false; playNow(); }
+  }
+  function loadWhole() {
+    if (whole !== 'none') return;
+    whole = 'loading';
+    var fail = 'The sound did not load. Check the internet connection, then reload the page.';
+    fetch('audio.bin', { cache: 'no-store' }).then(function (r) {
+      if (!r.ok) throw new Error(r.status);
+      var size = +r.headers.get('content-length') || 0;
+      if (!r.body || !size) return r.blob().then(window.__decrypt);
+      var reader = r.body.getReader(), got = 0, parts = [];
+      return (function pump() {
+        return reader.read().then(function (c) {
+          if (c.done) return window.__decrypt(new Blob(parts));
+          parts.push(c.value); got += c.value.length;
+          if (pendingT !== null || wantPlay) $('status').textContent = 'Loading... ' + Math.round(100 * got / size) + '%';
+          return pump();
+        });
+      })();
+    }).then(function (b) {
+      var at = pendingT !== null ? pendingT : (audio.currentTime || 0);
+      var playing = !audio.paused || wantPlay;
+      audio.src = URL.createObjectURL(new Blob([b], { type: 'audio/mpeg' }));
+      whole = 'ready';
+      pendingT = at; wantPlay = playing;
+      audio.load();
+      $('status').textContent = '';
+    }).catch(function () { whole = 'none'; $('status').textContent = fail; });
+  }
+
+  function seek(t, andPlay) {
+    t = Math.max(0, Math.min(t, total() - 0.25));
+    follow = true; $('backnow').hidden = true;
+    render(t, true);
+    if (canJump()) {
+      try { audio.currentTime = t; } catch (e) {}
+      if (andPlay) playNow();
+    } else {
+      pendingT = t;
+      if (andPlay || !audio.paused) { wantPlay = true; audio.pause(); }
+      if (audio.readyState >= 1) loadWhole(); else audio.load();
+      if (whole === 'loading') $('status').textContent = 'Loading...';
+    }
+  }
+  function findIdx(arr, t) {
+    var lo = 0, hi = arr.length - 1, ans = -1;
+    while (lo <= hi) { var mid = (lo + hi) >> 1; if (arr[mid].t <= t + 0.05) { ans = mid; lo = mid + 1; } else hi = mid - 1; }
+    return ans;
+  }
+  function centerOn(el) {
+    autoScrolling = true;
+    var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var visible = window.innerHeight - $('player').offsetHeight;
+    var top = window.scrollY + el.getBoundingClientRect().top - visible * 0.35;
+    window.scrollTo({ top: Math.max(0, top), behavior: reduce ? 'auto' : 'smooth' });
+    clearTimeout(centerOn.t);
+    centerOn.t = setTimeout(function () { autoScrolling = false; }, 800);
+  }
+  function drawBar(t) {
+    var pct = Math.min(100, 100 * t / total());
+    $('fill').style.width = pct + '%';
+    $('knob').style.left = pct + '%';
+    $('cur').textContent = fmt(t);
+    $('track').setAttribute('aria-valuemax', String(Math.round(total())));
+    $('track').setAttribute('aria-valuenow', String(Math.round(t)));
+    $('track').setAttribute('aria-valuetext', fmt(t) + ' of ' + fmt(total()));
+  }
+  function render(t, jumped) {
+    if (!dragging) drawBar(t);
+    var li = findIdx(lines, t);
+    if (li !== curLine) {
+      if (curLine >= 0) lines[curLine].el.classList.remove('now');
+      curLine = li;
+      if (li >= 0) {
+        lines[li].el.classList.add('now');
+        if (follow && (jumped || !audio.paused)) centerOn(lines[li].el);
+      }
+    }
+    var c = Math.max(0, findIdx(D.chapters, t));
+    if (c !== curChap) {
+      if (curChap >= 0) chapBtns[curChap].classList.remove('cur');
+      curChap = c; chapBtns[c].classList.add('cur');
+      $('nowchap').textContent = D.chapters[c].title;
+    }
+  }
+
+  function setPlaying(p) {
+    $('ic-play').toggleAttribute('hidden', p); $('ic-pause').toggleAttribute('hidden', !p);
+    $('play').setAttribute('aria-label', p ? 'Pause' : 'Play');
+  }
+  $('play').addEventListener('click', function () {
+    if (!audio.paused) { audio.pause(); return; }
+    follow = true; $('backnow').hidden = true;
+    if (curLine >= 0) centerOn(lines[curLine].el);
+    if (pendingT !== null || whole !== 'ready') { wantPlay = true; if (whole === 'loading') $('status').textContent = 'Loading...'; }
+    else playNow();
+  });
+  $('back').addEventListener('click', function () { seek(position() - 15, false); });
+  $('fwd').addEventListener('click', function () { seek(position() + 15, false); });
+  function position() { return pendingT !== null ? pendingT : (audio.currentTime || 0); }
+
+  var lastSave = 0;
+  audio.addEventListener('timeupdate', function () {
+    if (pendingT !== null) return;
+    var t = audio.currentTime || 0;
+    render(t, false);
+    if (Math.abs(t - lastSave) > 5) { lastSave = t; store('pos', String(t)); }
+  });
+  audio.addEventListener('play', function () { setPlaying(true); $('resume').hidden = true; });
+  audio.addEventListener('pause', function () { setPlaying(false); if (pendingT === null) store('pos', String(audio.currentTime || 0)); });
+  audio.addEventListener('ended', function () { setPlaying(false); store('pos', '0'); });
+  audio.addEventListener('waiting', function () { $('status').textContent = 'Loading...'; });
+  audio.addEventListener('playing', function () { $('status').textContent = ''; });
+  audio.addEventListener('loadedmetadata', function () {
+    $('dur').textContent = fmt(total());
+    if (canJump()) settle(); else loadWhole();
+  });
+  audio.addEventListener('error', function () {
+    if (whole === 'ready') $('status').textContent = 'The sound did not load. Check the internet connection, then reload the page.';
+    else loadWhole();
+  });
+
+  // Timeline: tap anywhere on it, or drag the dot
+  var track = $('track');
+  function tAt(e) {
+    var r = track.getBoundingClientRect();
+    return Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)) * total();
+  }
+  track.addEventListener('pointerdown', function (e) {
+    dragging = true;
+    try { track.setPointerCapture(e.pointerId); } catch (x) {}
+    drawBar(tAt(e));
+  });
+  track.addEventListener('pointermove', function (e) { if (dragging) drawBar(tAt(e)); });
+  function endDrag(e) { if (!dragging) return; dragging = false; seek(tAt(e), false); }
+  track.addEventListener('pointerup', endDrag);
+  track.addEventListener('pointercancel', function () { dragging = false; drawBar(audio.currentTime || 0); });
+  track.addEventListener('keydown', function (e) {
+    var step = { ArrowLeft: -15, ArrowDown: -15, ArrowRight: 15, ArrowUp: 15 }[e.key];
+    if (step) { e.preventDefault(); seek((audio.currentTime || 0) + step, false); }
+  });
+
+  // Stop following along when the reader scrolls by hand
+  function userScrolled() {
+    if (autoScrolling || audio.paused) return;
+    follow = false; $('backnow').hidden = false;
+  }
+  window.addEventListener('wheel', userScrolled, { passive: true });
+  window.addEventListener('touchmove', function (e) {
+    if (track.contains(e.target)) return;
+    userScrolled();
+  }, { passive: true });
+  $('backnow').addEventListener('click', function () {
+    follow = true; $('backnow').hidden = true;
+    if (curLine >= 0) centerOn(lines[curLine].el);
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.code === 'Space' && !/^(INPUT|BUTTON|TEXTAREA)$/.test(e.target.tagName) && e.target !== track) {
+      e.preventDefault(); $('play').click();
+    }
+  });
+
+  // Keep the end of the page clear of the docked player
+  function sizeSpacer() {
+    var h = $('player').offsetHeight;
+    $('spacer').style.height = (h + 24) + 'px';
+    document.documentElement.style.setProperty('--player-h', h + 'px');
+  }
+  sizeSpacer();
+  if (window.ResizeObserver) new ResizeObserver(sizeSpacer).observe($('player'));
+
+  // Offer to continue where this viewer stopped last time
+  var saved = parseFloat(load('pos'));
+  if (saved > 20 && saved < dur - 20) {
+    var r = $('resume');
+    r.textContent = 'Continue from ' + fmt(saved);
+    r.hidden = false;
+    r.addEventListener('click', function () { r.hidden = true; seek(saved, true); });
+  }
+
+  // Lock-screen controls where the browser supports them
+  if ('mediaSession' in navigator) {
+    try {
+      navigator.mediaSession.metadata = new MediaMetadata({ title: D.title, artist: D.date });
+      navigator.mediaSession.setActionHandler('seekbackward', function () { seek((audio.currentTime || 0) - 15, false); });
+      navigator.mediaSession.setActionHandler('seekforward', function () { seek((audio.currentTime || 0) + 15, false); });
+    } catch (e) {}
+  }
+  render(0, false);
+  document.title = D.title;
+  $('h1').textContent = D.title;
+  $('meta').textContent = D.date + ' \u00b7 ' + fmt(D.duration);
+  loadWhole();
+};
+</script>
+<script>
+(function () {
+  function msg(t) { document.getElementById('transcript').textContent = t; }
+  var raw = location.hash.slice(1);
+  if (!raw) { msg('This link is missing its last part. Open the full link you were sent.'); return; }
+  var b64 = raw.replace(/-/g, '+').replace(/_/g, '/');
+  while (b64.length % 4) b64 += '=';
+  var keyP;
+  try {
+    var bytes = Uint8Array.from(atob(b64), function (c) { return c.charCodeAt(0); });
+    keyP = crypto.subtle.importKey('raw', bytes, { name: 'AES-CBC' }, false, ['decrypt']);
+  } catch (e) { msg('This page could not be opened. Open the full link you were sent.'); return; }
+  function dec(buf) {
+    return keyP.then(function (k) { return crypto.subtle.decrypt({ name: 'AES-CBC', iv: buf.slice(0, 16) }, k, buf.slice(16)); });
+  }
+  window.__decrypt = function (blob) {
+    return blob.arrayBuffer().then(dec).then(function (p) { return new Blob([p], { type: 'audio/mpeg' }); });
+  };
+  fetch('data.bin').then(function (r) { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); })
+    .then(dec)
+    .then(function (p) { window.__start(JSON.parse(new TextDecoder().decode(p))); })
+    .catch(function () { msg('This page could not be opened. Open the full link you were sent.'); });
+})();
+</script>
+
+</body>
+</html>
